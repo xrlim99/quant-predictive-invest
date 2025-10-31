@@ -13,13 +13,42 @@ def compute_momentum(data_by_ticker: Dict[str, pd.DataFrame], window: int = 30) 
     """
     scores: Dict[str, float] = {}
     for ticker, df in data_by_ticker.items():
-        closes = df.get("Close")
-        if closes is None or len(closes) < window:
-            continue
-        start = float(closes.iloc[-window])
-        end = float(closes.iloc[-1])
-        if start != 0:
+        try:
+            # Ensure we have a Close column
+            if "Close" not in df.columns:
+                continue
+            
+            closes = df["Close"]
+            
+            # Check if we have enough data
+            if len(closes) < window:
+                continue
+            
+            # Get values using array access for more reliable scalar extraction
+            # Convert to numpy array to avoid Series issues
+            closes_array = closes.values
+            
+            # Get start and end values
+            start_val = closes_array[-window]
+            end_val = closes_array[-1]
+            
+            # Convert to float, handling None/NaN cases
+            try:
+                start = float(start_val) if pd.notna(start_val) else None
+                end = float(end_val) if pd.notna(end_val) else None
+            except (ValueError, TypeError):
+                continue
+            
+            if start is None or end is None or start == 0:
+                continue
+                
             scores[ticker] = (end - start) / start
+            
+        except Exception as e:
+            # Skip this ticker if there's any error
+            print(f"Warning: Error computing momentum for {ticker}: {e}")
+            continue
+    
     return scores
 
 

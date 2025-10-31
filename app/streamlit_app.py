@@ -11,6 +11,7 @@ import streamlit as st
 
 from src.quant_investor.config import (
     DEFAULT_DATA_PROVIDER,
+    DEFAULT_MARKET,
     DEFAULT_MOMENTUM_WINDOW,
     DEFAULT_PERIOD,
     DEFAULT_TICKERS,
@@ -20,12 +21,12 @@ from src.quant_investor.config import (
 from src.quant_investor.data import fetch_data
 from src.quant_investor.factors import compute_composite_score, compute_momentum
 from src.quant_investor.fundamentals import compute_fundamental_scores, fetch_fundamentals
+from src.quant_investor.markets import MARKET_CONFIGS
 from src.quant_investor.rank import rank_by_score
 from src.quant_investor.technical import compute_technical_scores
 
 
 st.set_page_config(page_title="Quant Investor - Stock Screener", layout="wide")
-st.title("📊 Quant Investor: Multi-Factor Stock Screener")
 
 
 @st.cache_data(show_spinner=False)
@@ -38,8 +39,35 @@ def get_data(
     return fetch_data(tickers, period=period, provider=provider, api_key=api_key)  # type: ignore[arg-type]
 
 
+# Initialize session state for market if not exists
+if "selected_market" not in st.session_state:
+    st.session_state.selected_market = DEFAULT_MARKET
+
 with st.sidebar:
     st.header("Settings")
+    
+    # Market Selection
+    st.subheader("Stock Market")
+    market = st.selectbox(
+        "Market",
+        ["UK", "MY"],
+        index=0 if DEFAULT_MARKET == "UK" else 1,
+        help="Select stock market: UK (London Stock Exchange) or MY (Bursa Malaysia)",
+        key="market_selector",
+    )
+    
+    # Update session state when market changes
+    st.session_state.selected_market = market
+    
+    market_config = MARKET_CONFIGS[market]
+    market_tickers = market_config["tickers"]
+    currency_symbol = market_config["currency_symbol"]
+    currency_code = market_config["currency"]
+    
+    st.info(f"📍 {market_config['name']} - {market_config['index_name']}")
+    st.caption(f"Currency: {currency_code} ({currency_symbol})")
+    
+    st.divider()
     
     # Data Provider Selection
     st.subheader("Data Source")
@@ -65,7 +93,12 @@ with st.sidebar:
     
     # Analysis Settings
     st.subheader("Analysis Settings")
-    tickers = st.multiselect("Tickers", DEFAULT_TICKERS, default=DEFAULT_TICKERS[:10])  # Default to first 10 for performance
+    tickers = st.multiselect(
+        "Tickers",
+        market_tickers,
+        default=market_tickers[:10],  # Default to first 10 for performance
+        help=f"Select stocks from {market_config['index_name']}",
+    )
     period = st.selectbox("History period", ["6mo", "1y", "2y", "5y"], index=["6mo", "1y", "2y", "5y"].index(DEFAULT_PERIOD))
     window = st.slider("Momentum window (days)", min_value=10, max_value=120, value=DEFAULT_MOMENTUM_WINDOW, step=5)
     top_n = st.slider("Top N", min_value=3, max_value=10, value=TOP_N)
@@ -95,6 +128,11 @@ with st.sidebar:
         "fundamental": fundamental_weight,
     }
 
+# Main title (update based on selected market)
+current_market = st.session_state.get("selected_market", DEFAULT_MARKET)
+current_market_config = MARKET_CONFIGS[current_market]
+st.title(f"📊 Quant Investor: Multi-Factor Stock Screener - {current_market_config['index_name']}")
+st.caption(f"📍 {current_market_config['name']} | 💰 Currency: {current_market_config['currency']} ({current_market_config['currency_symbol']})")
 
 if not tickers:
     st.info("Select at least one ticker in the sidebar.")
@@ -215,7 +253,9 @@ if selected_ticker in composite_scores:
         df_price = add_technical_indicators(df_price)
         
         # Create chart with price and SMAs
-        fig = px.line(df_price, x="Date", y="Close", title=f"{selected_ticker} - Price & Technical Indicators")
+        current_market_config = MARKET_CONFIGS[st.session_state.get("selected_market", DEFAULT_MARKET)]
+        currency_symbol = current_market_config["currency_symbol"]
+        fig = px.line(df_price, x="Date", y="Close", title=f"{selected_ticker} - Price & Technical Indicators ({currency_symbol})")
         
         # Add SMA lines if available
         if "SMA_20" in df_price.columns:

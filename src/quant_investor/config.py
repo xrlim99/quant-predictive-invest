@@ -1,16 +1,25 @@
 from typing import List, Literal, Union
 
+from .markets import MARKET_CONFIGS, Market
+
 # API Provider Options
 DataProvider = Literal["yahoo", "alpha_vantage"]
 
 # Default API provider (can be overridden via environment variable or dashboard)
 DEFAULT_DATA_PROVIDER: DataProvider = "yahoo"
 
+# Default market (can be overridden via dashboard)
+DEFAULT_MARKET: Market = "UK"
+
 # Alpha Vantage API Key (set via ALPHA_VANTAGE_API_KEY environment variable)
 # Get your free API key at: https://www.alphavantage.co/support/#api-key
 ALPHA_VANTAGE_API_KEY: Union[str, None] = None
 
-DEFAULT_TICKERS: List[str] = [
+# Get default tickers from market config
+DEFAULT_TICKERS: List[str] = MARKET_CONFIGS[DEFAULT_MARKET]["tickers"]
+
+# Legacy tickers (kept for backward compatibility)
+LEGACY_UK_TICKERS: List[str] = [
     # Top 50 LSE stocks by market cap
     "AZN.L",      # AstraZeneca PLC
     "SHEL.L",     # Shell plc

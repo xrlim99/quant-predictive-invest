@@ -1,8 +1,10 @@
 # Quant Investor
 
-Momentum-based daily stock screener for UK tickers with support for Yahoo Finance and Alpha Vantage APIs. Includes a CLI and a Streamlit dashboard.
+Multi-factor stock screener supporting **UK (London Stock Exchange)** and **Malaysia (Bursa Malaysia)** markets with Yahoo Finance and Alpha Vantage APIs. Includes a CLI and a Streamlit dashboard.
 
 ## Features
+- **Multi-Market Support**: Switch between UK (FTSE 100) and Malaysia (FTSE Bursa Malaysia Top 100) markets
+- **Currency Display**: Automatically displays prices in GBP (£) for UK or MYR (RM) for Malaysia
 - **Dual API Support**: Fetch data from Yahoo Finance (fast, no key required) or Alpha Vantage (official API)
 - **Multi-Factor Scoring**: Combines momentum, technical indicators, and fundamental metrics
 - **Technical Indicators**: SMA (20/50/200), EMA (12/26), RSI, MACD using `ta` library
@@ -10,7 +12,7 @@ Momentum-based daily stock screener for UK tickers with support for Yahoo Financ
 - **Composite Scoring**: Weighted combination of all factors (customizable weights)
 - Ranks tickers and shows top N based on composite score
 - Streamlit dashboard with interactive charts, technical indicators, and detailed metrics
-- Easy API provider switching via dashboard or environment variables
+- Easy API provider and market switching via dashboard
 
 ## Quickstart
 
@@ -71,13 +73,32 @@ The project supports two data providers:
 - **Environment variable**: Set `DATA_PROVIDER=alpha_vantage` in `.env` or environment
 - **Code**: Pass `provider="alpha_vantage"` to `fetch_data()`
 
+## Supported Markets
+
+### United Kingdom - London Stock Exchange
+- **Index**: FTSE 100 (Top 50 stocks)
+- **Currency**: GBP (£)
+- **Ticker Format**: `TICKER.L` (e.g., `HSBA.L`, `BP.L`)
+
+### Malaysia - Bursa Malaysia
+- **Index**: FTSE Bursa Malaysia Top 100 (83 major stocks)
+- **Currency**: MYR (RM)
+- **Ticker Format**: `TICKER.KL` (e.g., `MAYBANK.KL`, `PUBLICBANK.KL`)
+
+Switch between markets using the dropdown in the dashboard sidebar.
+
 ## Configuration
 Edit defaults in `src/quant_investor/config.py`:
-- `DEFAULT_TICKERS` – initial UK tickers (top 50 LSE stocks)
+- `DEFAULT_MARKET` – default market (`"UK"` or `"MY"`)
+- `DEFAULT_TICKERS` – automatically set based on selected market
 - `DEFAULT_PERIOD` – history period (e.g., `"1y"`)
 - `DEFAULT_MOMENTUM_WINDOW` – window days for momentum
 - `DEFAULT_DATA_PROVIDER` – default API provider (`"yahoo"` or `"alpha_vantage"`)
 - `TOP_N` – number of top stocks to display
+
+Edit market tickers in `src/quant_investor/markets.py`:
+- `UK_TICKERS` – London Stock Exchange tickers
+- `MY_TICKERS` – Bursa Malaysia tickers
 
 ## Scoring System
 

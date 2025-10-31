@@ -7,5 +7,6 @@ __all__ = [
     "rank",
     "technical",
     "fundamentals",
+    "markets",
 ]
 

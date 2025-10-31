@@ -15,9 +15,24 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
     
+    # Remove duplicate columns if any (keep first occurrence)
+    if df.columns.duplicated().any():
+        df = df.loc[:, ~df.columns.duplicated(keep='first')]
+    
     # Ensure we have required columns
     required_cols = ["Open", "High", "Low", "Close", "Volume"]
-    if not all(col in df.columns for col in required_cols):
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        return df
+    
+    # Ensure Close column is a single Series (not duplicated)
+    if isinstance(df["Close"], pd.DataFrame):
+        # If Close is a DataFrame (multiple columns), take the first one
+        df["Close"] = df["Close"].iloc[:, 0]
+    elif isinstance(df["Close"], pd.Series):
+        # Already a Series, good
+        pass
+    else:
         return df
     
     # Set Date as index if it's a column (needed for ta library)
@@ -27,20 +42,25 @@ def add_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
         date_as_index = True
     
     try:
+        # Get Close as a Series to ensure it's 1-dimensional
+        close_series = df["Close"]
+        if not isinstance(close_series, pd.Series):
+            close_series = close_series.iloc[:, 0] if hasattr(close_series, 'iloc') else close_series.squeeze()
+        
         # Simple Moving Averages (SMA)
-        df["SMA_20"] = ta.trend.SMAIndicator(close=df["Close"], window=20).sma_indicator()
-        df["SMA_50"] = ta.trend.SMAIndicator(close=df["Close"], window=50).sma_indicator()
-        df["SMA_200"] = ta.trend.SMAIndicator(close=df["Close"], window=200).sma_indicator()
+        df["SMA_20"] = ta.trend.SMAIndicator(close=close_series, window=20).sma_indicator()
+        df["SMA_50"] = ta.trend.SMAIndicator(close=close_series, window=50).sma_indicator()
+        df["SMA_200"] = ta.trend.SMAIndicator(close=close_series, window=200).sma_indicator()
         
         # Exponential Moving Averages (EMA)
-        df["EMA_12"] = ta.trend.EMAIndicator(close=df["Close"], window=12).ema_indicator()
-        df["EMA_26"] = ta.trend.EMAIndicator(close=df["Close"], window=26).ema_indicator()
+        df["EMA_12"] = ta.trend.EMAIndicator(close=close_series, window=12).ema_indicator()
+        df["EMA_26"] = ta.trend.EMAIndicator(close=close_series, window=26).ema_indicator()
         
         # Relative Strength Index (RSI)
-        df["RSI"] = ta.momentum.RSIIndicator(close=df["Close"], window=14).rsi()
+        df["RSI"] = ta.momentum.RSIIndicator(close=close_series, window=14).rsi()
         
         # MACD (bonus indicator)
-        macd = ta.trend.MACD(close=df["Close"])
+        macd = ta.trend.MACD(close=close_series)
         df["MACD"] = macd.macd()
         df["MACD_signal"] = macd.macd_signal()
         df["MACD_diff"] = macd.macd_diff()
