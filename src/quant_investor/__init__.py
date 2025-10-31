@@ -5,5 +5,7 @@ __all__ = [
     "data",
     "factors",
     "rank",
+    "technical",
+    "fundamentals",
 ]
 

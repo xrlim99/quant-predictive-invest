@@ -68,3 +68,10 @@ DEFAULT_PERIOD: str = "1y"
 DEFAULT_MOMENTUM_WINDOW: int = 30
 TOP_N: int = 5
 
+# Scoring weights for composite score (should sum to 1.0)
+SCORING_WEIGHTS: dict[str, float] = {
+    "momentum": 0.4,      # Price momentum (40%)
+    "technical": 0.35,    # Technical indicators (35%)
+    "fundamental": 0.25,  # Fundamental metrics (25%)
+}
+
