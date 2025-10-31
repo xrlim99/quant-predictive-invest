@@ -1,0 +1,10 @@
+# Alpha Vantage API Configuration
+# Copy this file to .env and fill in your API key
+# Get your free API key at: https://www.alphavantage.co/support/#api-key
+# Free tier: 5 API calls per minute, 500 calls per day
+ALPHA_VANTAGE_API_KEY=your_api_key_here
+
+# Data Provider Selection
+# Options: "yahoo" or "alpha_vantage"
+# Default: "yahoo"
+DATA_PROVIDER=yahoo

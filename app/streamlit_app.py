@@ -10,6 +10,7 @@ import plotly.express as px
 import streamlit as st
 
 from src.quant_investor.config import (
+    DEFAULT_DATA_PROVIDER,
     DEFAULT_MOMENTUM_WINDOW,
     DEFAULT_PERIOD,
     DEFAULT_TICKERS,
@@ -25,13 +26,43 @@ st.title("Quant Investor: Top Momentum Stocks")
 
 
 @st.cache_data(show_spinner=False)
-def get_data(tickers: list[str], period: str) -> dict[str, pd.DataFrame]:
-    return fetch_data(tickers, period=period)
+def get_data(
+    tickers: list[str],
+    period: str,
+    provider: str = "yahoo",
+    api_key: str = None,
+) -> dict[str, pd.DataFrame]:
+    return fetch_data(tickers, period=period, provider=provider, api_key=api_key)  # type: ignore[arg-type]
 
 
 with st.sidebar:
     st.header("Settings")
-    tickers = st.multiselect("Tickers", DEFAULT_TICKERS, default=DEFAULT_TICKERS)
+    
+    # Data Provider Selection
+    st.subheader("Data Source")
+    provider = st.selectbox(
+        "API Provider",
+        ["yahoo", "alpha_vantage"],
+        index=0 if DEFAULT_DATA_PROVIDER == "yahoo" else 1,
+        help="Yahoo Finance: Fast, no API key required. Alpha Vantage: Official API, requires key (free tier: 5 calls/min)",
+    )
+    
+    api_key = None
+    if provider == "alpha_vantage":
+        api_key = st.text_input(
+            "Alpha Vantage API Key",
+            type="password",
+            help="Get your free API key at https://www.alphavantage.co/support/#api-key",
+            placeholder="Enter your API key or set ALPHA_VANTAGE_API_KEY env var",
+        )
+        if not api_key:
+            st.warning("⚠️ Alpha Vantage requires an API key. Enter it above or set ALPHA_VANTAGE_API_KEY environment variable.")
+    
+    st.divider()
+    
+    # Analysis Settings
+    st.subheader("Analysis Settings")
+    tickers = st.multiselect("Tickers", DEFAULT_TICKERS, default=DEFAULT_TICKERS[:10])  # Default to first 10 for performance
     period = st.selectbox("History period", ["6mo", "1y", "2y", "5y"], index=["6mo", "1y", "2y", "5y"].index(DEFAULT_PERIOD))
     window = st.slider("Momentum window (days)", min_value=10, max_value=120, value=DEFAULT_MOMENTUM_WINDOW, step=5)
     top_n = st.slider("Top N", min_value=3, max_value=10, value=TOP_N)
@@ -41,8 +72,22 @@ if not tickers:
     st.info("Select at least one ticker in the sidebar.")
     st.stop()
 
-with st.spinner("Fetching data..."):
-    data = get_data(tickers, period)
+if provider == "alpha_vantage" and not api_key:
+    # Try to get from environment
+    import os
+    api_key = os.getenv("ALPHA_VANTAGE_API_KEY")
+    if not api_key:
+        st.error("❌ Alpha Vantage API key required. Please enter it in the sidebar or set ALPHA_VANTAGE_API_KEY environment variable.")
+        st.stop()
+
+with st.spinner(f"Fetching data from {provider}..."):
+    try:
+        data = get_data(tickers, period, provider=provider, api_key=api_key)
+    except Exception as e:
+        st.error(f"❌ Error fetching data: {str(e)}")
+        if provider == "alpha_vantage":
+            st.info("💡 Tip: Make sure your API key is valid and you haven't exceeded rate limits (5 calls/min for free tier).")
+        st.stop()
 
 scores = compute_momentum(data, window=window)
 top = rank_by_score(scores, top_n=top_n)

@@ -1,5 +1,14 @@
-from typing import List
+from typing import List, Literal, Union
 
+# API Provider Options
+DataProvider = Literal["yahoo", "alpha_vantage"]
+
+# Default API provider (can be overridden via environment variable or dashboard)
+DEFAULT_DATA_PROVIDER: DataProvider = "yahoo"
+
+# Alpha Vantage API Key (set via ALPHA_VANTAGE_API_KEY environment variable)
+# Get your free API key at: https://www.alphavantage.co/support/#api-key
+ALPHA_VANTAGE_API_KEY: Union[str, None] = None
 
 DEFAULT_TICKERS: List[str] = [
     # Top 50 LSE stocks by market cap
