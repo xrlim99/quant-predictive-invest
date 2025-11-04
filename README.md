@@ -3,6 +3,7 @@
 Multi-factor stock screener supporting **UK (London Stock Exchange)** and **Malaysia (Bursa Malaysia)** markets with Yahoo Finance and Alpha Vantage APIs. Includes a CLI and a Streamlit dashboard.
 
 ## Features
+
 - **Multi-Market Support**: Switch between UK (FTSE 100) and Malaysia (FTSE Bursa Malaysia Top 100) markets
 - **Currency Display**: Automatically displays prices in GBP (£) for UK or MYR (RM) for Malaysia
 - **Dual API Support**: Fetch data from Yahoo Finance (fast, no key required) or Alpha Vantage (official API)
@@ -17,36 +18,44 @@ Multi-factor stock screener supporting **UK (London Stock Exchange)** and **Mala
 ## Quickstart
 
 ### 1) Create a virtual environment (recommended)
+
 ```powershell
 python -m venv .venv
 . .venv/Scripts/Activate.ps1
 ```
 
 ### 2) Install dependencies
+
 ```powershell
 pip install -r requirements.txt
 ```
 
 ### 2b) (Optional) Configure Alpha Vantage API Key
+
 If you want to use Alpha Vantage API:
+
 1. Get a free API key at https://www.alphavantage.co/support/#api-key
 2. Copy `env_example.txt` to `.env` and add your key:
+
 ```powershell
 copy env_example.txt .env
 # Then edit .env and add your API key
 ```
 
 Or set the environment variable:
+
 ```powershell
 $env:ALPHA_VANTAGE_API_KEY="your_key_here"
 ```
 
 ### 3) Run the CLI (prints top 5)
+
 ```powershell
 python -m src.quant_investor.cli
 ```
 
 ### 4) Run the dashboard
+
 ```powershell
 streamlit run app/streamlit_app.py
 ```
@@ -56,12 +65,14 @@ streamlit run app/streamlit_app.py
 The project supports two data providers:
 
 ### Yahoo Finance (Default)
+
 - ✅ Fast, no API key required
 - ✅ Supports all LSE tickers with `.L` suffix
 - ✅ Unlimited requests
 - ⚠️ Unofficial API (via yfinance library)
 
 ### Alpha Vantage
+
 - ✅ Official API
 - ✅ Reliable and well-documented
 - ⚠️ Requires free API key (get at https://www.alphavantage.co/support/#api-key)
@@ -69,6 +80,7 @@ The project supports two data providers:
 - ⚠️ UK ticker format may differ (provider handles conversion)
 
 **Switching providers:**
+
 - **Dashboard**: Use the "API Provider" dropdown in the sidebar
 - **Environment variable**: Set `DATA_PROVIDER=alpha_vantage` in `.env` or environment
 - **Code**: Pass `provider="alpha_vantage"` to `fetch_data()`
@@ -76,11 +88,13 @@ The project supports two data providers:
 ## Supported Markets
 
 ### United Kingdom - London Stock Exchange
+
 - **Index**: FTSE 100 (Top 50 stocks)
 - **Currency**: GBP (£)
 - **Ticker Format**: `TICKER.L` (e.g., `HSBA.L`, `BP.L`)
 
 ### Malaysia - Bursa Malaysia
+
 - **Index**: FTSE Bursa Malaysia Top 100 (83 major stocks)
 - **Currency**: MYR (RM)
 - **Ticker Format**: `TICKER.KL` (e.g., `MAYBANK.KL`, `PUBLICBANK.KL`)
@@ -88,7 +102,9 @@ The project supports two data providers:
 Switch between markets using the dropdown in the dashboard sidebar.
 
 ## Configuration
+
 Edit defaults in `src/quant_investor/config.py`:
+
 - `DEFAULT_MARKET` – default market (`"UK"` or `"MY"`)
 - `DEFAULT_TICKERS` – automatically set based on selected market
 - `DEFAULT_PERIOD` – history period (e.g., `"1y"`)
@@ -97,6 +113,7 @@ Edit defaults in `src/quant_investor/config.py`:
 - `TOP_N` – number of top stocks to display
 
 Edit market tickers in `src/quant_investor/markets.py`:
+
 - `UK_TICKERS` – London Stock Exchange tickers
 - `MY_TICKERS` – Bursa Malaysia tickers
 
@@ -105,7 +122,7 @@ Edit market tickers in `src/quant_investor/markets.py`:
 The composite score combines three factor types:
 
 1. **Momentum (40% default)**: Price change over configurable window (default 30 days)
-2. **Technical Indicators (35% default)**: 
+2. **Technical Indicators (35% default)**:
    - SMA signals (price vs moving averages)
    - EMA crossover signals
    - RSI momentum score
@@ -119,6 +136,7 @@ The composite score combines three factor types:
 You can adjust weights in the dashboard sidebar or edit `SCORING_WEIGHTS` in `config.py`.
 
 ## Roadmap
+
 - Add more technical indicators (Bollinger Bands, Stochastic, etc.)
 - Support for more fundamental metrics (debt ratios, growth rates)
 - Optionally swap data source to Alpha Vantage or IEX Cloud
@@ -126,8 +144,21 @@ You can adjust weights in the dashboard sidebar or edit `SCORING_WEIGHTS` in `co
 - Portfolio optimization features
 
 ## Notes
+
 - This project uses a multi-factor scoring system combining momentum, technical indicators, and fundamentals; it is not a predictive ML model.
 - Yahoo Finance is the default due to speed and no API key requirement.
 - For production use or higher rate limits, consider Alpha Vantage or upgrading to a paid tier.
 - When using Alpha Vantage with many tickers, the provider automatically handles rate limiting (12-second delays between calls).
 
+## Validation dashboard
+
+A simple validation dashboard was added at `app/validation_dashboard.py`.
+
+- Purpose: train a model on historical data up to 6 months ago, predict returns as of that split date for selected tickers, extrapolate a 20-day predicted return to a 6-month estimate by compounding, and compare the estimated return to the actual observed return over the past 6 months.
+- How to run:
+
+```powershell
+streamlit run app/validation_dashboard.py
+```
+
+Notes: This validation harness is illustrative and makes approximations (extrapolating 20-day predictions to 6 months). For rigorous backtesting use rolling-window retraining and out-of-sample evaluation.
