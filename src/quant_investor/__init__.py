@@ -8,5 +8,6 @@ __all__ = [
     "technical",
     "fundamentals",
     "markets",
+    "ml_predictor",
 ]
 

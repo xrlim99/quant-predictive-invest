@@ -7,4 +7,6 @@ ta
 plotly
 alpha_vantage
 python-dotenv
+scikit-learn
+xgboost
 

@@ -22,6 +22,13 @@ from src.quant_investor.data import fetch_data
 from src.quant_investor.factors import compute_composite_score, compute_momentum
 from src.quant_investor.fundamentals import compute_fundamental_scores, fetch_fundamentals
 from src.quant_investor.markets import MARKET_CONFIGS
+from src.quant_investor.ml_predictor import (
+    forecast_trend,
+    get_top_predicted_stocks,
+    predict_stock_returns,
+    prepare_training_data,
+    train_prediction_models,
+)
 from src.quant_investor.rank import rank_by_score
 from src.quant_investor.technical import compute_technical_scores
 
@@ -206,7 +213,149 @@ for ticker, scores_dict in ranked_by_composite:
 df_results = pd.DataFrame(results_data)
 st.dataframe(df_results, hide_index=True, use_container_width=True)
 
+# ML Predictions Section
+st.divider()
+st.subheader("🤖 ML-Predicted Top 5 Performers")
+
+# Train ML model and make predictions
+with st.spinner("Training ML model and generating predictions..."):
+    try:
+        # Prepare training data
+        features_df, targets_df = prepare_training_data(data)
+        
+        if len(features_df) > 100:
+            # Train model for 5-day ahead prediction
+            model, scaler, feature_names = train_prediction_models(
+                features_df, targets_df, horizon="next_5d"
+            )
+            
+            # Make predictions
+            predictions = predict_stock_returns(
+                data, model, scaler, feature_names, horizon="next_5d"
+            )
+            
+            # Get top 5 predicted stocks
+            top_predicted = get_top_predicted_stocks(predictions, top_n=5)
+            
+            if top_predicted:
+                # Display predictions table
+                pred_data = []
+                for ticker, pred_dict in top_predicted:
+                    pred_data.append({
+                        "Ticker": ticker,
+                        "Predicted Return (5d)": f"{pred_dict['predicted_return']:.2%}",
+                        "Confidence Lower": f"{pred_dict['confidence_lower']:.2%}",
+                        "Confidence Upper": f"{pred_dict['confidence_upper']:.2%}",
+                        "Confidence Score": f"{pred_dict['confidence_score']:.2f}",
+                    })
+                
+                df_predictions = pd.DataFrame(pred_data)
+                st.dataframe(df_predictions, hide_index=True, use_container_width=True)
+                
+                # Store predictions in session state for trend charts
+                st.session_state.ml_predictions = predictions
+                st.session_state.top_predicted_stocks = top_predicted
+            else:
+                st.warning("No predictions available. Ensure sufficient historical data.")
+        else:
+            st.warning("⚠️ Insufficient data for ML training. Need at least 100 data points across all stocks.")
+            st.session_state.ml_predictions = {}
+            st.session_state.top_predicted_stocks = []
+            
+    except Exception as e:
+        st.error(f"❌ Error in ML prediction: {str(e)}")
+        st.info("💡 Try selecting more tickers or increasing the history period.")
+        st.session_state.ml_predictions = {}
+        st.session_state.top_predicted_stocks = []
+
+# Trend Forecasting for Top Predicted Stocks
+if st.session_state.get("top_predicted_stocks"):
+    st.subheader("📊 6-Month Trend Forecasts")
+    
+    selected_pred_ticker = st.selectbox(
+        "Select predicted stock for trend forecast",
+        [t for t, _ in st.session_state.top_predicted_stocks],
+        key="pred_ticker_selector"
+    )
+    
+    if selected_pred_ticker in data:
+        try:
+            df_forecast = forecast_trend(data[selected_pred_ticker], days_ahead=180)
+            
+            if not df_forecast.empty:
+                # Split historical and forecast data
+                historical = df_forecast[df_forecast["is_forecast"] == False]
+                forecast = df_forecast[df_forecast["is_forecast"] == True]
+                
+                # Create chart
+                fig = px.line(
+                    historical,
+                    x="Date",
+                    y="Close",
+                    title=f"{selected_pred_ticker} - 6-Month Price Forecast",
+                    color_discrete_sequence=["blue"]
+                )
+                
+                # Add forecast line
+                if len(forecast) > 0:
+                    fig.add_scatter(
+                        x=forecast["Date"],
+                        y=forecast["Close"],
+                        mode="lines",
+                        name="Forecast",
+                        line=dict(color="red", dash="dash", width=2)
+                    )
+                    
+                    # Add confidence bands if predictions available
+                    if selected_pred_ticker in st.session_state.get("ml_predictions", {}):
+                        pred_info = st.session_state.ml_predictions[selected_pred_ticker]
+                        current_price = historical["Close"].iloc[-1]
+                        
+                        # Project confidence intervals
+                        upper_band = current_price * (1 + pred_info["confidence_upper"])
+                        lower_band = current_price * (1 + pred_info["confidence_lower"])
+                        
+                        # Extend bands for forecast period (simplified)
+                        forecast_upper = [upper_band] * len(forecast)
+                        forecast_lower = [lower_band] * len(forecast)
+                        
+                        fig.add_scatter(
+                            x=forecast["Date"],
+                            y=forecast_upper,
+                            mode="lines",
+                            name="Upper Confidence (95%)",
+                            line=dict(color="rgba(255,0,0,0.3)", dash="dot"),
+                            fill="tonexty" if len(forecast) > 0 else None
+                        )
+                        
+                        fig.add_scatter(
+                            x=forecast["Date"],
+                            y=forecast_lower,
+                            mode="lines",
+                            name="Lower Confidence (95%)",
+                            line=dict(color="rgba(255,0,0,0.3)", dash="dot"),
+                            fill="tonexty"
+                        )
+                
+                # Add prediction info
+                if selected_pred_ticker in st.session_state.get("ml_predictions", {}):
+                    pred_info = st.session_state.ml_predictions[selected_pred_ticker]
+                    current_market_config = MARKET_CONFIGS[st.session_state.get("selected_market", DEFAULT_MARKET)]
+                    currency_symbol = current_market_config["currency_symbol"]
+                    
+                    st.info(
+                        f"**Predicted 5-day return**: {pred_info['predicted_return']:.2%} | "
+                        f"**Confidence Interval**: [{pred_info['confidence_lower']:.2%}, {pred_info['confidence_upper']:.2%}] | "
+                        f"**Confidence Score**: {pred_info['confidence_score']:.2f}"
+                    )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+        except Exception as e:
+            st.error(f"Error generating forecast: {str(e)}")
+
 # Detailed metrics for each stock
+st.divider()
 st.subheader("📈 Detailed Metrics")
 
 selected_ticker = st.selectbox("Select ticker for detailed view", [t for t, _ in ranked_by_composite])
